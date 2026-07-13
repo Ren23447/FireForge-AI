@@ -36,15 +36,11 @@ An ongoing robotics project focused on:
 ---
 
 ## 💻 Tech Stack
-
-- Python
 - JavaScript
 - HTML5
 - CSS3
 - Three.js
 - VRM / VRoid
-- SQLite
-- Git
 - GitHub
 
 ---
