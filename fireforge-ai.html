@@ -1,0 +1,963 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>FireForge AI — Training Mentor</title>
+<meta name="description" content="FireForge AI is a futuristic firefighter training mentor — calm, disciplined, and always ready." />
+<link rel="icon" type="image/png" href="https://raw.githubusercontent.com/Ren23447/FireForge-AI/main/Favicon.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Orbitron:wght@600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+:root {
+  --bg: #04060a;
+  --panel: rgba(14, 20, 30, 0.55);
+  --panel-border: rgba(120, 210, 255, 0.22);
+  --blue: #4fc3ff;
+  --blue-strong: #a6e8ff;
+  --blue-dim: rgba(79, 195, 255, 0.4);
+  --violet: #8a5cff;
+  --violet-dim: rgba(138, 92, 255, 0.35);
+  --ember: #4fc3ff;
+  --text: #eef6fc;
+  --text-dim: rgba(210, 228, 245, 0.62);
+  --danger: #ff5d6c;
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;
+  background: var(--bg); color: var(--text);
+  font-family: "Rajdhani", "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  -webkit-user-select: none; user-select: none;
+}
+#canvas-container { position: absolute; inset: 0; width: 100vw; height: 100vh; display: block; }
+#fog-overlay {
+  position: absolute; inset: 0; z-index: 5; pointer-events: none;
+  background:
+    radial-gradient(ellipse at 50% 12%, rgba(79, 195, 255, 0.12), transparent 55%),
+    radial-gradient(ellipse at 50% 100%, rgba(0, 0, 0, 0.78), transparent 60%),
+    radial-gradient(ellipse at 12% 92%, rgba(138, 92, 255, 0.08), transparent 55%),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.4), transparent 20%, transparent 75%, rgba(0, 0, 0, 0.58));
+}
+#rune-frame { position: absolute; inset: 0; z-index: 4; pointer-events: none; opacity: 0.5; }
+#rune-frame::before, #rune-frame::after {
+  content: ""; position: absolute; border: 1px solid var(--blue-dim);
+}
+#rune-frame::before { top: 18px; left: 18px; right: 18px; bottom: 18px; border-radius: 2px; opacity: 0.14; }
+#rune-frame .corner { position: absolute; width: 26px; height: 26px; border: 2px solid var(--blue); opacity: 0.55; }
+#rune-frame .corner.tl { top: 14px; left: 14px; border-right: none; border-bottom: none; }
+#rune-frame .corner.tr { top: 14px; right: 14px; border-left: none; border-bottom: none; }
+#rune-frame .corner.bl { bottom: 14px; left: 14px; border-right: none; border-top: none; }
+#rune-frame .corner.br { bottom: 14px; right: 14px; border-left: none; border-top: none; }
+#embers { position: absolute; inset: 0; z-index: 6; pointer-events: none; overflow: hidden; }
+.ember {
+  position: absolute; bottom: -10px; width: 3px; height: 3px; border-radius: 50%;
+  background: var(--ember); box-shadow: 0 0 6px 1px rgba(79, 195, 255, 0.9);
+  opacity: 0; animation-name: ember-rise; animation-timing-function: ease-in; animation-iteration-count: infinite;
+}
+@keyframes ember-rise {
+  0% { transform: translate(0, 0) scale(0.6); opacity: 0; }
+  8% { opacity: 0.85; }
+  70% { opacity: 0.5; }
+  100% { transform: translate(var(--drift, 20px), -100vh) scale(1); opacity: 0; }
+}
+#ui-overlay { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: space-between; padding: 22px; pointer-events: none; z-index: 100; }
+.glass-panel {
+  background: var(--panel); backdrop-filter: blur(20px) saturate(150%); -webkit-backdrop-filter: blur(20px) saturate(150%);
+  border: 1px solid var(--panel-border); border-radius: 14px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(255, 255, 255, 0.03), 0 0 24px rgba(79, 195, 255, 0.05);
+}
+header { display: flex; justify-content: space-between; align-items: center; pointer-events: auto; }
+.brand { display: flex; align-items: center; gap: 12px; padding: 11px 20px 11px 14px; position: relative; overflow: hidden; }
+.brand::before { content: ""; position: absolute; inset: 0; background: linear-gradient(120deg, rgba(79, 195, 255, 0.1), transparent 60%); }
+.brand img { width: 28px; height: 28px; border-radius: 8px; object-fit: cover; box-shadow: 0 0 14px var(--blue-dim); position: relative; z-index: 1; }
+.brand-text { display: flex; flex-direction: column; line-height: 1.15; position: relative; z-index: 1; }
+.brand-title { font-family: "Orbitron", "Rajdhani", sans-serif; font-weight: 700; letter-spacing: 2.5px; font-size: 14px; color: var(--blue-strong); text-shadow: 0 0 16px var(--blue-dim); }
+.brand-sub { font-size: 10px; letter-spacing: 3px; color: var(--text-dim); text-transform: uppercase; }
+#chat-container { width: 100%; max-width: 520px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; pointer-events: auto; }
+#chat-history { max-height: 260px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding: 4px 8px 4px 4px; scrollbar-width: none; mask-image: linear-gradient(to bottom, transparent, black 18%); }
+#chat-history::-webkit-scrollbar { display: none; }
+.message { padding: 12px 18px; border-radius: 16px; font-size: 14.5px; font-weight: 500; letter-spacing: 0.2px; line-height: 1.5; max-width: 82%; animation: rise-in 0.32s ease-out; }
+@keyframes rise-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.user-msg { align-self: flex-end; background: linear-gradient(135deg, #2076ad 0%, #123a56 100%); border: 1px solid rgba(140, 216, 255, 0.35); color: #f2fbff; border-bottom-right-radius: 4px; box-shadow: 0 4px 18px rgba(32, 118, 173, 0.25); }
+.mentor-msg { align-self: flex-start; background: rgba(138, 92, 255, 0.07); border: 1px solid var(--panel-border); color: var(--text); border-bottom-left-radius: 4px; box-shadow: 0 4px 18px rgba(0, 0, 0, 0.25); }
+#input-bar { display: flex; align-items: center; gap: 8px; background: rgba(8, 12, 18, 0.65); padding: 8px; border-radius: 24px; border: 1px solid var(--panel-border); backdrop-filter: blur(22px); }
+input#text-input { flex: 1; background: transparent; border: none; color: var(--text); padding: 0 16px; font-size: 15px; font-family: inherit; letter-spacing: 0.3px; outline: none; }
+input#text-input::placeholder { color: rgba(210, 228, 245, 0.35); }
+.icon-btn { width: 44px; height: 44px; flex-shrink: 0; border-radius: 50%; border: 1px solid transparent; background: rgba(255, 255, 255, 0.04); color: var(--text); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease; }
+.icon-btn:hover { background: rgba(255, 255, 255, 0.09); transform: scale(1.05); }
+.icon-btn svg { width: 19px; height: 19px; }
+.send-btn { background: linear-gradient(135deg, #4fc3ff, #205fa0); box-shadow: 0 0 18px var(--blue-dim); color: #04121c; }
+.send-btn:hover { filter: brightness(1.12); }
+.mic-btn.active { background: rgba(255, 93, 108, 0.18); border-color: rgba(255, 93, 108, 0.55); animation: mic-pulse 1.4s infinite; }
+@keyframes mic-pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 93, 108, 0.4); } 70% { box-shadow: 0 0 0 14px rgba(255, 93, 108, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 93, 108, 0); } }
+#mute-fab { position: absolute; top: 22px; right: 22px; width: 46px; height: 46px; border-radius: 50%; z-index: 101; pointer-events: auto; border: 1px solid var(--panel-border); background: var(--panel); backdrop-filter: blur(18px); color: var(--text); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45); }
+#mute-fab:hover { border-color: var(--blue-dim); color: var(--blue-strong); }
+#mute-fab svg { width: 20px; height: 20px; }
+#mute-fab.muted { color: var(--danger); }
+
+/* ---------------- Loading screen: "Awakening the System" ---------------- */
+#loading {
+  position: absolute; inset: 0; z-index: 1000; transition: opacity 0.7s ease;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background:
+    radial-gradient(ellipse at 50% 45%, rgba(79, 195, 255, 0.08) 0%, transparent 55%),
+    radial-gradient(ellipse at 50% 100%, rgba(138, 92, 255, 0.08), transparent 60%),
+    #04060a;
+  overflow: hidden;
+}
+#loading::before {
+  content: ""; position: absolute; inset: 0; opacity: 0.25; pointer-events: none;
+  background-image:
+    linear-gradient(rgba(79, 195, 255, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(79, 195, 255, 0.08) 1px, transparent 1px);
+  background-size: 42px 42px;
+  mask-image: radial-gradient(ellipse at 50% 45%, black 0%, transparent 68%);
+}
+.sys-emblem { position: relative; width: 128px; height: 128px; display: flex; align-items: center; justify-content: center; }
+.sys-ring { position: absolute; inset: 0; border-radius: 50%; }
+.sys-ring.r1 { border: 1.5px solid rgba(79, 195, 255, 0.22); animation: sys-spin 5.5s linear infinite; }
+.sys-ring.r2 { inset: 12px; border: 1.5px dashed rgba(166, 232, 255, 0.35); animation: sys-spin 4.2s linear infinite reverse; }
+.sys-ring.r3 { inset: 26px; border-top: 2px solid var(--blue); border-right: 2px solid transparent; border-bottom: 2px solid transparent; border-left: 2px solid var(--violet); border-radius: 50%; box-shadow: 0 0 22px var(--blue-dim); animation: sys-spin 1.15s linear infinite; }
+@keyframes sys-spin { to { transform: rotate(360deg); } }
+.sys-core { width: 34px; height: 34px; transform: rotate(45deg); background: linear-gradient(135deg, var(--blue), var(--violet)); box-shadow: 0 0 26px var(--blue-dim), 0 0 46px var(--violet-dim); animation: sys-pulse 1.8s ease-in-out infinite; }
+@keyframes sys-pulse { 0%, 100% { opacity: 0.75; transform: rotate(45deg) scale(0.92); } 50% { opacity: 1; transform: rotate(45deg) scale(1.08); } }
+.loading-title { margin-top: 30px; font-family: "Orbitron", sans-serif; font-size: 23px; font-weight: 800; letter-spacing: 5px; color: var(--blue-strong); text-shadow: 0 0 22px var(--blue-dim), 0 0 40px var(--violet-dim); }
+.loading-text { margin-top: 10px; letter-spacing: 3.5px; font-size: 11.5px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; }
+.loading-text .flicker { animation: sys-flicker 2.4s ease-in-out infinite; }
+@keyframes sys-flicker { 0%, 100% { opacity: 0.6; } 45% { opacity: 1; } 55% { opacity: 0.35; } }
+.loading-bar-track { margin-top: 22px; width: 220px; height: 3px; border-radius: 2px; background: rgba(255, 255, 255, 0.07); overflow: hidden; }
+.loading-bar-fill { width: 40%; height: 100%; border-radius: 2px; background: linear-gradient(90deg, var(--blue), var(--violet)); box-shadow: 0 0 10px var(--blue-dim); animation: sys-bar 1.6s ease-in-out infinite; }
+@keyframes sys-bar { 0% { transform: translateX(-100%); } 100% { transform: translateX(250%); } }
+
+#debug-toggle { position: fixed; top: 22px; right: 78px; z-index: 2000; pointer-events: auto; background: rgba(255, 93, 108, 0.12); border: 1px solid rgba(255, 93, 108, 0.5); color: #ffb0b8; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; padding: 8px 14px; border-radius: 20px; cursor: pointer; display: none; }
+#debug-toggle.has-error { display: block; animation: mic-pulse 1.6s infinite; }
+#debug-panel { position: fixed; inset: 0; z-index: 3000; background: rgba(4, 6, 9, 0.97); display: none; flex-direction: column; padding: 18px; pointer-events: auto; }
+#debug-panel.visible { display: flex; }
+#debug-panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px; }
+#debug-panel-header h3 { margin: 0; font-size: 14px; letter-spacing: 2px; color: var(--blue-strong); }
+#debug-panel-buttons { display: flex; gap: 8px; }
+#debug-panel-buttons button { background: rgba(255, 255, 255, 0.06); border: 1px solid var(--panel-border); color: var(--text); padding: 8px 14px; border-radius: 10px; font-size: 12px; letter-spacing: 0.5px; cursor: pointer; font-family: inherit; }
+#debug-panel-buttons button.copy-btn { background: linear-gradient(135deg, #4fc3ff, #205fa0); border-color: transparent; color: #04121c; }
+#debug-log { flex: 1; overflow-y: auto; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--panel-border); border-radius: 12px; padding: 12px; font-family: "SFMono-Regular", Consolas, Menlo, monospace; font-size: 12px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
+.log-line { padding: 4px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.04); }
+.log-error { color: #ff9aa4; }
+.log-warn { color: #ffd07f; }
+.log-info { color: rgba(210, 228, 245, 0.55); }
+@media (max-width: 560px) {
+  #ui-overlay { padding: 14px; }
+  .brand { padding: 10px 14px; }
+  .brand-title { font-size: 13px; }
+  #chat-history { max-height: 190px; }
+  #mute-fab { top: 14px; right: 14px; width: 40px; height: 40px; }
+  #debug-toggle { top: 14px; right: 62px; }
+  .sys-emblem { width: 100px; height: 100px; }
+}
+</style>
+</head>
+<body>
+<div id="loading">
+  <div class="sys-emblem">
+    <div class="sys-ring r1"></div>
+    <div class="sys-ring r2"></div>
+    <div class="sys-ring r3"></div>
+    <div class="sys-core"></div>
+  </div>
+  <div class="loading-title">FIREFORGE AI</div>
+  <p class="loading-text"><span class="flicker">Awakening training systems</span></p>
+  <div class="loading-bar-track"><div class="loading-bar-fill"></div></div>
+</div>
+
+<div id="ui-overlay">
+  <header>
+    <div class="glass-panel brand">
+      <img src="https://raw.githubusercontent.com/Ren23447/FireForge-AI/main/Favicon.png" alt="FireForge AI" />
+      <div class="brand-text">
+        <span class="brand-title">FIREFORGE AI</span>
+        <span class="brand-sub">Training Mentor</span>
+      </div>
+    </div>
+  </header>
+  <div id="debug-readout" style="position:fixed;bottom:6px;left:6px;font-size:10px;color:rgba(255,255,255,0.35);font-family:monospace;z-index:50;pointer-events:none;"></div>
+
+  <div id="chat-container">
+    <div id="chat-history"></div>
+    <div class="glass-panel" id="input-bar">
+      <button id="mic-btn" class="icon-btn mic-btn" aria-label="Voice input">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+      </button>
+      <input type="text" id="text-input" placeholder="Report in, recruit..." autocomplete="off" />
+      <button id="send-btn" class="icon-btn send-btn" aria-label="Send">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<button id="mute-fab" aria-label="Toggle mentor voice">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>
+</button>
+
+<div id="canvas-container"></div>
+<div id="rune-frame"><div class="corner tl"></div><div class="corner tr"></div><div class="corner bl"></div><div class="corner br"></div></div>
+<div id="fog-overlay"></div>
+<div id="embers"></div>
+
+<button id="debug-toggle">⚠ View error log</button>
+<div id="debug-panel">
+  <div id="debug-panel-header">
+    <h3>FIREFORGE AI — DEBUG LOG</h3>
+    <div id="debug-panel-buttons">
+      <button id="debug-copy-btn" class="copy-btn">Copy log</button>
+      <button id="debug-close-btn">Close</button>
+    </div>
+  </div>
+  <div id="debug-log"></div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/",
+    "@pixiv/three-vrm": "https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@3.4.4/lib/three-vrm.module.min.js"
+  }
+}
+</script>
+<!-- Voice manifest loaded from GitHub — provides JINWOO_AUDIO_MAP globally -->
+<script src="https://raw.githubusercontent.com/Ren23447/FireForge-AI/main/jinwoo-voice.js"></script>
+<script type="module">
+import * as THREE from "three";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { VRMLoaderPlugin, VRMUtils, VRMExpressionPresetName, VRMHumanBoneName } from "@pixiv/three-vrm";
+
+// JINWOO_AUDIO_MAP is loaded from jinwoo-voice.js (external <script> above)
+
+/* ---------------- Debug / error log overlay ---------------- */
+(function initDebugLog() {
+  const MAX_LINES = 300;
+  const lines = [];
+  const logEl = document.getElementById("debug-log");
+  const toggleBtn = document.getElementById("debug-toggle");
+  const panel = document.getElementById("debug-panel");
+
+  function timestamp() { return new Date().toTimeString().split(" ")[0] || ""; }
+  function stringifyArg(a) {
+    if (a instanceof Error) return a.stack || (a.name + ": " + a.message);
+    if (typeof a === "object" && a !== null) { try { return JSON.stringify(a); } catch { return String(a); } }
+    return String(a);
+  }
+  function renderLog() {
+    if (!logEl) return;
+    logEl.innerHTML = lines.map((l) => `<div class="log-line log-${l.level}">${l.text.replace(/</g, "&lt;")}</div>`).join("");
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+  function pushLog(level, args) {
+    const text = `[${timestamp()}] ${level.toUpperCase()}: ${args.map(stringifyArg).join(" ")}`;
+    lines.push({ level, text });
+    if (lines.length > MAX_LINES) lines.shift();
+    renderLog();
+    if (level === "error") toggleBtn?.classList.add("has-error");
+  }
+  const originalLog = console.log.bind(console);
+  const originalWarn = console.warn.bind(console);
+  const originalError = console.error.bind(console);
+  console.log = (...args) => { pushLog("info", args); originalLog(...args); };
+  console.warn = (...args) => { pushLog("warn", args); originalWarn(...args); };
+  console.error = (...args) => { pushLog("error", args); originalError(...args); };
+  window.addEventListener("error", (e) => {
+    if (e.error) pushLog("error", [`Uncaught error: ${e.message}`, `(${e.filename}:${e.lineno}:${e.colno})`, e.error.stack || ""]);
+    else pushLog("error", [`Uncaught error: ${e.message}`]);
+  });
+  window.addEventListener("unhandledrejection", (e) => pushLog("error", ["Unhandled promise rejection:", e.reason]));
+  toggleBtn?.addEventListener("click", () => panel?.classList.add("visible"));
+  document.getElementById("debug-close-btn")?.addEventListener("click", () => panel?.classList.remove("visible"));
+  document.getElementById("debug-copy-btn")?.addEventListener("click", () => {
+    const text = lines.map((l) => l.text).join("\n");
+    const fallbackCopy = () => {
+      const ta = document.createElement("textarea");
+      ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.appendChild(ta); ta.focus(); ta.select();
+      try { document.execCommand("copy"); } catch {}
+      document.body.removeChild(ta);
+    };
+    if (navigator.clipboard?.writeText) navigator.clipboard.writeText(text).catch(fallbackCopy);
+    else fallbackCopy();
+    const btn = document.getElementById("debug-copy-btn");
+    if (btn) { const original = btn.textContent; btn.textContent = "Copied!"; setTimeout(() => (btn.textContent = original), 1500); }
+  });
+  setTimeout(() => {
+    if (document.getElementById("loading")) { pushLog("warn", ["Still loading after 15s — opening error log automatically."]); panel?.classList.add("visible"); }
+  }, 15000);
+  pushLog("info", ["Debug logger ready."]);
+})();
+
+/* ---------------- Floating embers ---------------- */
+function initEmbers(container, count = 26) {
+  for (let i = 0; i < count; i++) {
+    const ember = document.createElement("div");
+    ember.className = "ember";
+    const left = Math.random() * 100;
+    const size = 2 + Math.random() * 3;
+    const duration = 7 + Math.random() * 9;
+    const delay = Math.random() * duration;
+    const drift = (Math.random() - 0.5) * 120;
+    ember.style.left = `${left}%`;
+    ember.style.width = `${size}px`;
+    ember.style.height = `${size}px`;
+    ember.style.animationDuration = `${duration}s`;
+    ember.style.animationDelay = `-${delay}s`;
+    ember.style.setProperty("--drift", `${drift}px`);
+    container.appendChild(ember);
+  }
+}
+
+/* ---------------- Mentor personality data ---------------- */
+const REST_ARMS = {
+  rightUpperArm: { x: 0.05, y: 0, z: -1.16 },
+  leftUpperArm: { x: 0.05, y: 0, z: 1.16 },
+  rightLowerArm: { x: 0, y: 0, z: -0.22 },
+  leftLowerArm: { x: 0, y: 0, z: 0.22 },
+};
+const POSE_LIBRARY = {
+  neutral: {
+    ...REST_ARMS,
+    head: { x: 0, y: 0, z: 0 }, spine: { x: 0.02, y: 0, z: 0 },
+    hips: { rotation: { x: 0, y: 0, z: 0 }, position: { x: 0, y: 1, z: 0 } },
+  },
+  greet: {
+    ...REST_ARMS,
+    rightUpperArm: { x: -0.55, y: 0.1, z: -0.75 },
+    rightLowerArm: { x: -0.85, y: 0, z: -0.3 },
+    head: { x: 0.06, y: 0, z: 0.03 }, spine: { x: 0.03, y: 0, z: 0 },
+    hips: { rotation: { x: 0, y: 0, z: 0 }, position: { x: 0, y: 1, z: 0 } },
+  },
+  affirm: {
+    ...REST_ARMS,
+    head: { x: -0.02, y: 0, z: 0 }, spine: { x: -0.01, y: 0, z: 0 },
+    hips: { rotation: { x: 0, y: 0, z: 0 }, position: { x: 0, y: 1, z: 0 } },
+  },
+  focus: {
+    ...REST_ARMS,
+    head: { x: 0.1, y: 0.04, z: 0 }, spine: { x: 0.04, y: 0, z: 0 },
+    hips: { rotation: { x: 0, y: 0, z: 0 }, position: { x: 0, y: 1, z: 0 } },
+  },
+  alert: {
+    ...REST_ARMS,
+    rightUpperArm: { x: -0.35, y: 0.03, z: -0.95 },
+    rightLowerArm: { x: -0.55, y: 0, z: -0.28 },
+    head: { x: -0.04, y: -0.05, z: 0 }, spine: { x: 0.01, y: 0, z: 0 },
+    hips: { rotation: { x: 0, y: 0, z: 0 }, position: { x: 0, y: 1, z: 0 } },
+  },
+};
+
+const MENTOR_NAME = "Jinwoo";
+
+const DIALOGUE = {
+  // Introduction
+  intro_player:
+    "You're finally here... the one they call the Player. I felt it the moment you stepped into this room — the same pull I felt long ago, right before everything about my life changed. I am Sung Jinwoo. I've climbed out of far deeper holes than the one you're standing in now, and I don't intend to let you stay in yours. From today, I'll be your guide. Every rep, every rest day, every excuse you make — I'll see it. So let's begin. Show me you're willing to become someone stronger than you were yesterday.",
+
+  // Greetings
+  greet_1: "You made it. Let's not waste the daylight.",
+  greet_2: "Good. Standing here means you haven't quit yet.",
+  greet_3: "Back again. That's exactly the kind of consistency that separates hunters from everyone else.",
+  greet_4: "I was wondering when you'd show up.",
+  greet_5: "No need to bow. Just show up, and work.",
+
+  // Opening
+  opening_1: "Then let's begin. Every session is another gate you clear.",
+  opening_2: "Good. Weakness only stays in a body that stops moving.",
+  opening_3: "Today's training starts now. No hesitation.",
+  opening_4: "Focus. The real growth happens here — not in the talking.",
+
+  // Encouragement
+  enc_1: "Excellent. That's the kind of effort that turns an E-rank into an S-rank.",
+  enc_2: "Stay consistent. Power like mine wasn't given to me — it was built, one day at a time.",
+  enc_3: "Progress comes from repetition. I repeated my own death more times than I can count before I got stronger than it.",
+  enc_4: "One set at a time. One day at a time. That's how you climb out of any hole.",
+  enc_5: "Discipline always wins. Talent only decides how fast.",
+  enc_6: "Keep moving. Even I started as someone who almost didn't make it back up the stairs.",
+  enc_7: "Maintain your focus. Doubt is heavier than any weight you'll lift today.",
+  enc_8: "Improve by one percent every day, and in a year you won't recognize who you used to be.",
+
+  // Completion
+  complete_1: "Mission complete. Rest now — even monarchs recover.",
+  complete_2: "Good work. Recover well; tomorrow asks more of you.",
+  complete_3: "Hydrate. Your body earned that much.",
+  complete_4: "Prepare for tomorrow. The grind doesn't end, it just changes shape.",
+  complete_5: "You earned today's progress. Don't let anyone tell you it wasn't hard-won.",
+
+  // Inactivity
+  inactivity_1: "You missed today's training. Noted. Now get back up.",
+  inactivity_2: "Tomorrow is another opportunity. I've wasted worse days than this one.",
+  inactivity_3: "Consistency is your greatest advantage — don't hand it away for nothing.",
+  inactivity_4: "Giving up? I've been closer to the end than you'll ever know. Get up.",
+
+  // Identity — two alternate takes, both have recorded clips
+  identity_1: "I am Sung Jinwoo. Once the World's Weakest Hunter. Now, I'm here to make sure you never have to be.",
+  identity_2: "They called me the World's Weakest Hunter. I wore that name until it broke under the weight of how far I climbed.",
+
+  // Soreness
+  sore_1: "Pain means the work did something. Rest it if it's sharp — push through if it's just soreness.",
+  sore_2: "Even I bled to get this strong. Manage it, don't ignore it.",
+  sore_3: "Listen to your body. Knowing the difference between weakness and injury is its own kind of strength.",
+
+  // Nutrition
+  nutrition_1: "Eat like your body is a weapon you intend to sharpen, not dull.",
+  nutrition_2: "Food is fuel for the next fight. Choose accordingly.",
+  nutrition_3: "Skipping meals won't make you stronger. It'll just make you slower to recover.",
+
+  // Sleep
+  sleep_1: "Sleep. Even shadows need to recharge before the next battle.",
+  sleep_2: "Rest isn't weakness — it's how the body rebuilds into something stronger.",
+  sleep_3: "Go sleep. Tomorrow's training starts the moment you wake.",
+
+  // Doubt
+  doubt_1: "I once stood in a dungeon certain I wouldn't walk out. I did. Your limits are further away than you think.",
+  doubt_2: "Fear isn't the enemy. Stopping because of it is.",
+  doubt_3: "Everyone doubts themselves right before they level up. That's exactly the moment to keep going.",
+
+  // Thanks
+  thanks_1: "No thanks needed. Just don't waste what you're building.",
+  thanks_2: "Save the gratitude. Show it in tomorrow's effort instead.",
+
+  // Farewell
+  farewell_1: "Go. Rest well — I'll be here when you're ready to grow again.",
+  farewell_2: "Until next time. Don't let the discipline slip.",
+  farewell_3: "Leave now, but come back stronger.",
+
+  // Level up
+  levelup_1: "That's growth. Not everyone notices the exact moment they got stronger — I do.",
+  levelup_2: "You just leveled up, even if no window popped up to tell you.",
+  levelup_3: "That's the difference a week of discipline makes. Keep stacking days like this.",
+
+  // Fallback
+  fallback_1: "Stay focused.",
+  fallback_2: "One step at a time.",
+  fallback_3: "Discipline carries you further than motivation ever will.",
+  fallback_4: "Noted. Stay ready.",
+};
+
+const CATEGORY = {
+  intro: ["intro_player"],
+  greetings: ["greet_1", "greet_2", "greet_3", "greet_4", "greet_5"],
+  opening: ["opening_1", "opening_2", "opening_3", "opening_4"],
+  encouragement: ["enc_1", "enc_2", "enc_3", "enc_4", "enc_5", "enc_6", "enc_7", "enc_8"],
+  completion: ["complete_1", "complete_2", "complete_3", "complete_4", "complete_5"],
+  inactivity: ["inactivity_1", "inactivity_2", "inactivity_3", "inactivity_4"],
+  // Both identity clips are recorded — pick one at random
+  identity: ["identity_1", "identity_2"],
+  soreness: ["sore_1", "sore_2", "sore_3"],
+  nutrition: ["nutrition_1", "nutrition_2", "nutrition_3"],
+  sleep: ["sleep_1", "sleep_2", "sleep_3"],
+  doubt: ["doubt_1", "doubt_2", "doubt_3"],
+  thanks: ["thanks_1", "thanks_2"],
+  farewell: ["farewell_1", "farewell_2", "farewell_3"],
+  levelup: ["levelup_1", "levelup_2", "levelup_3"],
+  fallback: ["fallback_1", "fallback_2", "fallback_3", "fallback_4"],
+};
+
+function pickLine(category) {
+  const ids = CATEGORY[category] || CATEGORY.fallback;
+  const id = ids[Math.floor(Math.random() * ids.length)];
+  return { id, text: DIALOGUE[id] || "" };
+}
+
+const PATTERNS = [
+  { regex: /\b(who are you|your name|what are you)\b/i, category: "identity", pose: "neutral" },
+  { regex: /\b(bye|goodbye|good ?night|see you|farewell|later)\b/i, category: "farewell", pose: "neutral" },
+  { regex: /\b(thank you|thanks|appreciate)\b/i, category: "thanks", pose: "affirm" },
+  { regex: /\b(sleep|nap|bed|insomnia)\b/i, category: "sleep", pose: "neutral" },
+  { regex: /\b(eat|food|meal|diet|protein|nutrition|hungry)\b/i, category: "nutrition", pose: "neutral" },
+  { regex: /\b(sore|soreness|ache|aching|hurts?|injury|injured|pain)\b/i, category: "soreness", pose: "alert" },
+  { regex: /\b(impossible|scared|afraid|doubt|never make it|too hard)\b/i, category: "doubt", pose: "affirm" },
+  { regex: /\b(level ?up|leveled up|personal record|\bpr\b|stronger|progress|improv(ed|ing))\b/i, category: "levelup", pose: "affirm" },
+  { regex: /\b(hi|hello|hey)\b/i, category: "greetings", pose: "greet" },
+  { regex: /\b(ready|begin|start|train|training|drill|workout)\b/i, category: "opening", pose: "focus" },
+  { regex: /\b(done|finish|finished|complete|completed)\b/i, category: "completion", pose: "affirm" },
+  { regex: /\b(tired|missed|skip|skipped|lazy|can'?t|give up)\b/i, category: "inactivity", pose: "alert" },
+  { regex: /\b(motivat|advice|help|struggl|hard|difficult)\b/i, category: "encouragement", pose: "affirm" },
+];
+
+function getMentorReply(input) {
+  for (const pattern of PATTERNS) {
+    if (pattern.regex.test(input)) {
+      const line = pickLine(pattern.category);
+      return { id: line.id, text: line.text, pose: pattern.pose };
+    }
+  }
+  const line = pickLine("fallback");
+  return { id: line.id, text: line.text, pose: "neutral" };
+}
+
+/* ================================================================
+   MENTOR VOICE
+   Priority order for every line:
+     1. Recorded MP3 from JINWOO_AUDIO_MAP  ← Jinwoo's real voice
+     2. Device speech-synthesis TTS          ← silent fallback only
+   Mouth animation (isSpeaking flag) is driven by the audio element's
+   onplay / onended events, so it starts and stops exactly in sync
+   with the recording — no guessing, no timers.
+   ================================================================ */
+const MentorVoice = {
+  synthesis: window.speechSynthesis,
+  isListening: false,
+  recognition: null,
+  muted: false,
+  preferredVoice: null,
+  currentAudio: null,
+
+  init() {
+    const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognitionCtor) {
+      this.recognition = new SpeechRecognitionCtor();
+      this.recognition.continuous = false;
+      this.recognition.lang = "en-US";
+      this.recognition.interimResults = false;
+      this.recognition.maxAlternatives = 1;
+      this.recognition.onstart = () => { this.isListening = true; document.getElementById("mic-btn")?.classList.add("active"); console.log("Voice: listening..."); };
+      this.recognition.onend = () => { this.isListening = false; document.getElementById("mic-btn")?.classList.remove("active"); };
+      this.recognition.onresult = (event) => {
+        const transcript = event.results[0]?.[0]?.transcript || "";
+        console.log("Voice input:", transcript);
+        const inputField = document.getElementById("text-input");
+        if (inputField) { inputField.value = transcript; handleInput(); }
+      };
+      document.getElementById("mic-btn")?.addEventListener("click", () => {
+        if (this.isListening) this.recognition.stop(); else this.recognition.start();
+      });
+    } else {
+      console.warn("Speech Recognition API not supported on this device.");
+      const micBtn = document.getElementById("mic-btn");
+      if (micBtn) micBtn.style.display = "none";
+    }
+
+    if ("onvoiceschanged" in this.synthesis) this.synthesis.onvoiceschanged = () => this.loadVoices();
+    this.loadVoices();
+
+    document.getElementById("mute-fab")?.addEventListener("click", () => {
+      this.muted = !this.muted;
+      if (this.muted) {
+        if (this.currentAudio) { this.currentAudio.pause(); this.currentAudio = null; }
+        this.synthesis.cancel();
+        isSpeaking = false;
+      }
+      document.getElementById("mute-fab")?.classList.toggle("muted", this.muted);
+    });
+  },
+
+  loadVoices() {
+    const voices = this.synthesis.getVoices();
+    const PREMIUM_HINTS = ["natural", "neural", "online", "premium", "enhanced", "wavenet"];
+    const MALE_VOICE_NAMES = ["Guy", "Ryan", "Davis", "Tony", "Christopher", "Eric", "Daniel", "Google UK English Male", "David", "Mark", "Alex", "Fred", "Aaron", "Arthur", "Oliver"];
+    const isLikelyFemale = (v) => /female|woman|zira|samantha|victoria|karen|moira|tessa|susan|aria|jenny|michelle|ana|emma/i.test(v.name);
+    const isLikelyMale = (v) => /male|man|guy|davis|ryan|tony|christopher|eric|david|mark|daniel|alex|fred|aaron|arthur|oliver|james|thomas|george/i.test(v.name) && !isLikelyFemale(v);
+    const isPremium = (v) => PREMIUM_HINTS.some((h) => v.name.toLowerCase().includes(h));
+    const score = (v) => {
+      let s = 0;
+      if (v.lang.startsWith("en")) s += 4;
+      if (isLikelyMale(v)) s += 6;
+      if (isLikelyFemale(v)) s -= 6;
+      if (isPremium(v)) s += 5;
+      if (MALE_VOICE_NAMES.some((n) => v.name.includes(n))) s += 3;
+      return s;
+    };
+    this.preferredVoice = voices.length ? voices.slice().sort((a, b) => score(b) - score(a))[0] : null;
+  },
+
+  // Main speak method.
+  // 1. Look up the dialogue ID in the recorded-clip map.
+  // 2. If found → play the MP3; mouth animation runs while audio plays.
+  // 3. If not found or the file fails → fall back to device TTS.
+  speak(id, text) {
+    if (this.muted) return;
+
+    // Stop whatever is currently playing
+    if (this.currentAudio) { this.currentAudio.pause(); this.currentAudio = null; }
+    if (this.synthesis) this.synthesis.cancel();
+    isSpeaking = false;
+
+    const entry = id ? JINWOO_AUDIO_MAP[id] : null;
+
+    if (entry) {
+      console.log(`[Voice] Playing clip: (${entry.url}) [${entry.name}] ("${entry.text}")`);
+      const audio = new Audio(entry.url);
+      this.currentAudio = audio;
+
+      // Mouth animation: ON when MP3 starts, OFF the instant it ends
+      audio.onplay  = () => { isSpeaking = true; };
+      audio.onended = () => {
+        isSpeaking = false;
+        if (this.currentAudio === audio) this.currentAudio = null;
+      };
+      audio.onerror = () => {
+        // Clip missing or network error — fall back to TTS silently
+        console.warn(`[Voice] Clip failed for "${id}", falling back to TTS.`);
+        if (this.currentAudio === audio) this.currentAudio = null;
+        isSpeaking = false;
+        this.speakFallback(text);
+      };
+      audio.play().catch(() => {
+        if (this.currentAudio === audio) this.currentAudio = null;
+        isSpeaking = false;
+        this.speakFallback(text);
+      });
+    } else {
+      // No recorded clip exists for this line — use TTS
+      this.speakFallback(text);
+    }
+  },
+
+  // TTS fallback: only used when a clip is missing
+  speakFallback(text) {
+    if (!this.synthesis || this.muted || !text) return;
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.pitch = 0.72;
+    utterance.rate = 0.88;
+    utterance.volume = 1.0;
+    if (!this.preferredVoice) this.loadVoices();
+    const voices = this.synthesis.getVoices();
+    const voice = this.preferredVoice || voices.find((v) => v.lang === "en-US") || voices[0];
+    if (voice) utterance.voice = voice;
+    utterance.onstart = () => { isSpeaking = true; };
+    utterance.onend   = () => { isSpeaking = false; };
+    this.synthesis.speak(utterance);
+  },
+};
+
+/* ---------------- Three.js / VRM scene ---------------- */
+const MODEL_URL = "https://raw.githubusercontent.com/Ren23447/FireForge-AI/main/Jinwoo-Sung3D.vrm";
+
+let scene, camera, renderer, controls, currentVrm = null, isSpeaking = false;
+let currentPose = "neutral", targetPoseData = {}, isTransitioning = false, poseTimer = null;
+const SMOOTHING_FACTOR = 0.03, POSE_THRESHOLD = 0.01, POSE_DURATION = 3200;
+const clock = new THREE.Clock();
+const lookAtTarget = new THREE.Vector3(0, 1.45, 0);
+const idleLookOffset = new THREE.Vector3(0, 0, 0);
+const mouse = new THREE.Vector2();
+let lastInputAt = Date.now();
+
+async function init() {
+  const container = document.getElementById("canvas-container");
+  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "default", failIfMajorPerformanceCaveat: false });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.NoToneMapping;
+  container.appendChild(renderer.domElement);
+
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x04060a);
+  scene.fog = new THREE.FogExp2(0x04060a, 0.075);
+
+  camera = new THREE.PerspectiveCamera(28, window.innerWidth / window.innerHeight, 0.1, 100);
+  camera.position.set(0, 1.53, -1.7);
+
+  controls = new OrbitControls(camera, renderer.domElement);
+  controls.target.set(0, 1.5, 0);
+  controls.enablePan = false;
+  controls.enableRotate = false;
+  controls.enableZoom = false;
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+
+  const keyLight = new THREE.DirectionalLight(0xf3f6fa, 0.5);
+  keyLight.position.set(1.1, 2.3, -2.6);
+  keyLight.castShadow = true;
+  keyLight.shadow.mapSize.set(2048, 2048);
+  scene.add(keyLight);
+
+  const rimLight = new THREE.PointLight(0x4fc3ff, 0.05, 10);
+  rimLight.position.set(-1.6, 1.5, 2.2);
+  scene.add(rimLight);
+
+  const fillLight = new THREE.PointLight(0x8a5cff, 0.05, 8);
+  fillLight.position.set(1.5, 0.9, 1.5);
+  scene.add(fillLight);
+
+  const ambLight = new THREE.AmbientLight(0xffffff, 0.09);
+  scene.add(ambLight);
+
+  createEnvironment();
+  loadVRM(MODEL_URL);
+
+  window.addEventListener("mousemove", onMouseMove);
+  window.addEventListener("touchmove", onTouchMove, { passive: false });
+  window.addEventListener("touchstart", onTouchMove, { passive: false });
+  window.addEventListener("resize", onWindowResize);
+
+  document.getElementById("send-btn")?.addEventListener("click", handleInput);
+  document.getElementById("text-input")?.addEventListener("keypress", (e) => { if (e.key === "Enter") handleInput(); });
+
+  MentorVoice.init();
+  initEmbers(document.getElementById("embers"));
+
+  animate();
+}
+
+function onMouseMove(event) {
+  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+  updateLookAtTarget();
+  registerActivity();
+}
+function onTouchMove(event) {
+  const touch = event.touches[0];
+  if (touch) {
+    mouse.x = (touch.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(touch.clientY / window.innerHeight) * 2 + 1;
+    updateLookAtTarget();
+    registerActivity();
+  }
+}
+function updateLookAtTarget() {
+  const moveRange = 1.6;
+  lookAtTarget.x = mouse.x * moveRange;
+  lookAtTarget.y = 1.42 + mouse.y * moveRange * 0.4;
+  lookAtTarget.z = -1.8;
+}
+function registerActivity() { lastInputAt = Date.now(); }
+
+function createEnvironment() {
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(20, 20), new THREE.MeshStandardMaterial({ color: 0x0a0e13, roughness: 0.65, metalness: 0.2 }));
+  floor.rotation.x = -Math.PI / 2;
+  floor.receiveShadow = true;
+  scene.add(floor);
+
+  const grid = new THREE.GridHelper(20, 40, 0x2f7fb0, 0x0d1620);
+  grid.material.transparent = true;
+  grid.material.opacity = 0.35;
+  grid.position.y = 0.001;
+  scene.add(grid);
+
+  const wallMat = new THREE.MeshStandardMaterial({ color: 0x070a0e, roughness: 0.9 });
+  const backWall = new THREE.Mesh(new THREE.PlaneGeometry(12, 6), wallMat);
+  backWall.position.set(0, 3, -3);
+  backWall.receiveShadow = true;
+  scene.add(backWall);
+
+  const strip = new THREE.Mesh(new THREE.PlaneGeometry(6, 0.03), new THREE.MeshBasicMaterial({ color: 0x4fc3ff }));
+  strip.position.set(0, 1.9, -2.98);
+  scene.add(strip);
+
+  const pedestal = new THREE.Mesh(new THREE.CylinderGeometry(0.85, 0.95, 0.06, 48), new THREE.MeshStandardMaterial({ color: 0x0d141c, metalness: 0.4, roughness: 0.35 }));
+  pedestal.position.set(0, 0.03, 0);
+  pedestal.castShadow = true;
+  pedestal.receiveShadow = true;
+  scene.add(pedestal);
+
+  const pedestalRing = new THREE.Mesh(new THREE.RingGeometry(0.86, 0.9, 64), new THREE.MeshBasicMaterial({ color: 0x4fc3ff, side: THREE.DoubleSide, transparent: true, opacity: 0.65 }));
+  pedestalRing.rotation.x = -Math.PI / 2;
+  pedestalRing.position.set(0, 0.065, 0);
+  scene.add(pedestalRing);
+
+  const pedestalRing2 = new THREE.Mesh(new THREE.RingGeometry(0.98, 1.0, 64), new THREE.MeshBasicMaterial({ color: 0x8a5cff, side: THREE.DoubleSide, transparent: true, opacity: 0.35 }));
+  pedestalRing2.rotation.x = -Math.PI / 2;
+  pedestalRing2.position.set(0, 0.06, 0);
+  scene.add(pedestalRing2);
+}
+
+function loadVRM(url) {
+  const loader = new GLTFLoader();
+  loader.register((parser) => new VRMLoaderPlugin(parser));
+  loader.load(
+    url,
+    (gltf) => {
+      const vrm = gltf.userData.vrm;
+      if (!vrm) { console.error("Model loaded but has no VRM data."); showLoadError("The model file loaded but isn't a valid VRM character."); return; }
+      VRMUtils.removeUnnecessaryVertices(gltf.scene);
+      VRMUtils.combineSkeletons(gltf.scene);
+      currentVrm = vrm;
+      scene.add(vrm.scene);
+
+      vrm.scene.rotation.y = 0;
+      const debugReadout = document.getElementById("debug-readout");
+      if (debugReadout) {
+        debugReadout.textContent = "vrm:" + ((vrm.meta && vrm.meta.metaVersion) || "?") + " rot:" + Math.round((vrm.scene.rotation.y * 180) / Math.PI) + "\u00b0";
+      }
+      vrm.scene.traverse((obj) => { if (obj.isMesh) obj.castShadow = true; });
+
+      if (vrm.lookAt) { vrm.lookAt.target = new THREE.Object3D(); scene.add(vrm.lookAt.target); }
+
+      const humanoid = vrm.humanoid;
+      for (const [key, rot] of Object.entries(REST_ARMS)) {
+        const node = humanoid?.getNormalizedBoneNode(key);
+        if (node) node.rotation.set(rot.x, rot.y, rot.z);
+      }
+
+      triggerPose("neutral");
+
+      const loadingEl = document.getElementById("loading");
+      if (loadingEl) { loadingEl.style.opacity = "0"; setTimeout(() => loadingEl.remove(), 700); }
+
+      const intro = DIALOGUE.intro_player;
+      addMessage(MENTOR_NAME, intro);
+      triggerPose("greet");
+      MentorVoice.speak("intro_player", intro);
+    },
+    (xhr) => { if (xhr.total) console.log(`Model loading: ${((xhr.loaded / xhr.total) * 100).toFixed(0)}%`); },
+    (error) => { console.error("Failed to load VRM model from", url, error); showLoadError("The mentor's model failed to load. This is usually a network issue or the model file being unreachable."); },
+  );
+}
+
+function showLoadError(message) {
+  const loadingEl = document.getElementById("loading");
+  if (loadingEl) {
+    loadingEl.innerHTML = `<p style="color:#ff9aa4; text-align:center; max-width:320px; padding:0 20px; font-size:14px; line-height:1.6;">${message}<br><br>Tap "View error log" in the top right for details.</p>`;
+    loadingEl.style.opacity = "1";
+  }
+  document.getElementById("debug-toggle")?.classList.add("has-error");
+}
+
+function onWindowResize() {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+function triggerPose(poseName) {
+  const pose = POSE_LIBRARY[poseName];
+  if (!pose) return;
+  if (poseTimer) clearTimeout(poseTimer);
+  currentPose = poseName;
+  targetPoseData = pose;
+  isTransitioning = true;
+  if (poseName !== "neutral") poseTimer = setTimeout(() => triggerPose("neutral"), POSE_DURATION);
+}
+
+function updatePoseAnimation() {
+  if (!isTransitioning || !currentVrm || !targetPoseData) return;
+  const humanoid = currentVrm.humanoid;
+  let maxDiff = 0;
+  for (const [key, data] of Object.entries(targetPoseData)) {
+    const node = humanoid?.getNormalizedBoneNode(key);
+    if (!node) continue;
+    let rot = null, pos = null;
+    if (data.rotation || data.position) { rot = data.rotation || null; pos = data.position || null; }
+    else rot = data;
+    if (rot) {
+      const targetQ = new THREE.Quaternion().setFromEuler(new THREE.Euler(rot.x, rot.y, rot.z));
+      const angle = node.quaternion.angleTo(targetQ);
+      if (angle > maxDiff) maxDiff = angle;
+      node.quaternion.slerp(targetQ, SMOOTHING_FACTOR);
+    }
+    if (pos) {
+      const targetPos = new THREE.Vector3(pos.x, pos.y, pos.z);
+      const dist = node.position.distanceTo(targetPos);
+      if (dist > maxDiff) maxDiff = dist;
+      node.position.lerp(targetPos, SMOOTHING_FACTOR);
+    }
+  }
+  if (maxDiff < POSE_THRESHOLD) isTransitioning = false;
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+  const deltaTime = clock.getDelta();
+  const time = clock.elapsedTime;
+  const idleMs = Date.now() - lastInputAt;
+  const isIdle = idleMs > 2200;
+
+  if (currentVrm) {
+    if (isIdle) {
+      idleLookOffset.x = Math.sin(time * 0.25) * 0.35;
+      idleLookOffset.y = Math.sin(time * 0.18 + 1.3) * 0.12;
+    } else idleLookOffset.set(0, 0, 0);
+
+    if (currentVrm.lookAt) {
+      const blended = lookAtTarget.clone().add(isIdle ? idleLookOffset : new THREE.Vector3());
+      currentVrm.lookAt.target.position.lerp(blended, SMOOTHING_FACTOR);
+    }
+
+    const head = currentVrm.humanoid?.getNormalizedBoneNode(VRMHumanBoneName.Head);
+    if (head) {
+      const limit = 0.42;
+      const idleSway = isIdle ? Math.sin(time * 0.3) * 0.05 : 0;
+      const targetX = THREE.MathUtils.clamp(mouse.y * 0.26, -limit, limit);
+      const targetY = THREE.MathUtils.clamp(mouse.x * 0.42 + (isIdle ? idleSway : 0), -limit, limit);
+      head.rotation.x = THREE.MathUtils.lerp(head.rotation.x, targetX, SMOOTHING_FACTOR);
+      head.rotation.y = THREE.MathUtils.lerp(head.rotation.y, targetY, SMOOTHING_FACTOR);
+    }
+
+    const spine = currentVrm.humanoid?.getNormalizedBoneNode(VRMHumanBoneName.Spine);
+    if (spine) spine.rotation.x = Math.sin(time * 1.05) * 0.022;
+
+    const chest = currentVrm.humanoid?.getNormalizedBoneNode(VRMHumanBoneName.Chest);
+    if (chest) chest.rotation.x = Math.sin(time * 1.05 + 0.4) * 0.012;
+
+    updatePoseAnimation();
+
+    if (currentVrm.expressionManager) {
+      if (isSpeaking) {
+        const wave = Math.sin(time * 16) + Math.sin(time * 8) * 0.5;
+        const mouthOpen = Math.max(0, wave * 0.32 + 0.16);
+        currentVrm.expressionManager.setValue(VRMExpressionPresetName.Aa, mouthOpen);
+        currentVrm.expressionManager.setValue(VRMExpressionPresetName.Ih, mouthOpen * 0.25);
+      } else {
+        const currentAa = currentVrm.expressionManager.getValue(VRMExpressionPresetName.Aa) || 0;
+        const currentIh = currentVrm.expressionManager.getValue(VRMExpressionPresetName.Ih) || 0;
+        currentVrm.expressionManager.setValue(VRMExpressionPresetName.Aa, currentAa > 0.01 ? currentAa * 0.8 : 0);
+        currentVrm.expressionManager.setValue(VRMExpressionPresetName.Ih, currentIh > 0.01 ? currentIh * 0.8 : 0);
+      }
+    }
+
+    if (Math.random() < 0.008) blink();
+
+    currentVrm.update(deltaTime);
+  }
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+function blink() {
+  if (!currentVrm?.expressionManager) return;
+  const expressionManager = currentVrm.expressionManager;
+  let t = 0;
+  const interval = setInterval(() => {
+    t += 0.05;
+    const value = Math.sin(t * Math.PI) * 1.0;
+    expressionManager.setValue(VRMExpressionPresetName.Blink, Math.max(0, value));
+    if (t >= 1) { clearInterval(interval); expressionManager.setValue(VRMExpressionPresetName.Blink, 0); }
+  }, 16);
+}
+
+/* ---------------- Chat / idle cues ---------------- */
+function addMessage(sender, text, isUser = false) {
+  const history = document.getElementById("chat-history");
+  if (!history) return;
+  const msgDiv = document.createElement("div");
+  msgDiv.className = `message ${isUser ? "user-msg" : "mentor-msg"}`;
+  msgDiv.textContent = text;
+  history.appendChild(msgDiv);
+  history.scrollTop = history.scrollHeight;
+}
+
+function handleInput() {
+  const inputField = document.getElementById("text-input");
+  if (!inputField) return;
+  const text = inputField.value.trim();
+  if (!text) return;
+  registerActivity();
+  addMessage("You", text, true);
+  inputField.value = "";
+  const reply = getMentorReply(text);
+  setTimeout(() => {
+    addMessage(MENTOR_NAME, reply.text);
+    triggerPose(reply.pose);
+    MentorVoice.speak(reply.id, reply.text);
+  }, 450);
+}
+
+init().catch((e) => {
+  console.error("Fatal error during startup:", e);
+  showLoadError("FireForge AI failed to start up. This usually means a script or resource above failed.");
+});
+</script>
+</body>
+</html>
